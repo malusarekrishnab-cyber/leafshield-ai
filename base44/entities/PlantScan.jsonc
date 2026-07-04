@@ -1,0 +1,65 @@
+{
+  "name": "PlantScan",
+  "type": "object",
+  "properties": {
+    "image_url": {
+      "type": "string",
+      "description": "URL of the uploaded plant image"
+    },
+    "plant_name": {
+      "type": "string",
+      "description": "Detected plant name"
+    },
+    "disease_name": {
+      "type": "string",
+      "description": "Detected disease name"
+    },
+    "is_healthy": {
+      "type": "boolean",
+      "description": "Whether the plant is healthy"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Detection confidence percentage"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "description": "Disease severity level"
+    },
+    "symptoms": {
+      "type": "string",
+      "description": "Observed symptoms"
+    },
+    "treatment": {
+      "type": "string",
+      "description": "Recommended treatment"
+    },
+    "prevention": {
+      "type": "string",
+      "description": "Prevention tips"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "fruit",
+        "vegetable",
+        "grain",
+        "flower",
+        "tree",
+        "other"
+      ],
+      "description": "Plant category"
+    }
+  },
+  "required": [
+    "image_url",
+    "plant_name",
+    "disease_name"
+  ]
+}

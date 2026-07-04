@@ -1,0 +1,62 @@
+{
+  "name": "DiseaseInfo",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Disease name"
+    },
+    "scientific_name": {
+      "type": "string",
+      "description": "Scientific name of the pathogen"
+    },
+    "affected_plants": {
+      "type": "string",
+      "description": "Comma-separated list of affected plants"
+    },
+    "symptoms": {
+      "type": "string",
+      "description": "Disease symptoms description"
+    },
+    "causes": {
+      "type": "string",
+      "description": "Disease causes"
+    },
+    "treatment": {
+      "type": "string",
+      "description": "Treatment methods"
+    },
+    "prevention": {
+      "type": "string",
+      "description": "Prevention tips"
+    },
+    "severity_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Reference image URL"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "fungal",
+        "bacterial",
+        "viral",
+        "nutrient_deficiency",
+        "pest",
+        "environmental"
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ]
+}
