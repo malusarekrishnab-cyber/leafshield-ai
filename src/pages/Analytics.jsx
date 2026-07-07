@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, TrendingUp, PieChart, Activity, Leaf, Bug, Shield, Calendar } from "lucide-react";
-import { PlantScan } from "@/lib/entities";
-import { useAuth } from "@/lib/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, AreaChart, Area } from "recharts";
 import AnimatedCounter from "@/components/shared/AnimatedCounter";
 import ConfidenceRing from "@/components/shared/ConfidenceRing";
@@ -10,18 +8,15 @@ import ConfidenceRing from "@/components/shared/ConfidenceRing";
 const COLORS = ["#22c55e", "#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6", "#ec4899"];
 
 export default function Analytics() {
-  const { user } = useAuth();
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    const query = user?.role === "admin" ? {} : { created_by_id: user.uid };
-    PlantScan.filter(query, "-created_date", 100).then(data => {
-      setScans(data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
+    // ✅ LocalStorage वरून data load करा (झटपट)
+    const history = JSON.parse(localStorage.getItem('plantScanHistory') || '[]');
+    setScans(history);
+    setLoading(false);
+  }, []);
 
   const totalScans = scans.length;
   const healthyCount = scans.filter(s => s.is_healthy).length;
@@ -52,7 +47,7 @@ export default function Analytics() {
     date.setDate(date.getDate() - i);
     const dayStr = date.toLocaleDateString("en-US", { weekday: "short" });
     const dayScans = scans.filter(s => {
-      const scanDate = new Date(s.created_date);
+      const scanDate = new Date(s.timestamp || s.created_date);
       return scanDate.toDateString() === date.toDateString();
     });
     weeklyData.push({
@@ -89,9 +84,7 @@ export default function Analytics() {
           <BarChart3 className="w-8 h-8 text-green-600" />
           Analytics Dashboard
         </h1>
-        <p className="text-gray-400 mt-2">
-          {user?.role === "admin" ? "All users' data (Admin View)" : "तुमच्या स्वतःच्या scans चे insights"}
-        </p>
+        <p className="text-gray-400 mt-2">तुमच्या सर्व scans चे insights</p>
       </motion.div>
 
       {totalScans === 0 ? (

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { History as HistoryIcon, Calendar, Trash2, CheckCircle2, AlertTriangle, Eye, X, ChevronRight, Download, Maximize2 } from "lucide-react";
-import { PlantScan } from "@/lib/entities";
-import { useAuth } from "@/lib/AuthContext";
 import SeverityBadge from "@/components/shared/SeverityBadge";
 import ConfidenceRing from "@/components/shared/ConfidenceRing";
 import ExportModal from "@/components/history/ExportModal";
@@ -10,28 +8,28 @@ import PDFDownloadButton from "@/components/shared/PDFExport";
 import moment from "moment";
 
 export default function History() {
-  const { user } = useAuth();
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedScan, setSelectedScan] = useState(null);
   const [showExport, setShowExport] = useState(false);
 
   useEffect(() => {
-    if (user) loadScans();
-  }, [user]);
+    loadScans();
+  }, []);
 
   const loadScans = () => {
     setLoading(true);
-    // Admins see all scans; regular users see only their own
-    const query = user?.role === "admin" ? {} : { created_by_id: user.uid };
-    PlantScan.filter(query, "-created_date", 100)
-      .then(data => { setScans(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    // ✅ LocalStorage वरून data load करा (झटपट)
+    const history = JSON.parse(localStorage.getItem('plantScanHistory') || '[]');
+    setScans(history);
+    setLoading(false);
   };
 
-  const deleteScan = async (id) => {
-    await PlantScan.delete(id);
-    setScans(scans.filter(s => s.id !== id));
+  const deleteScan = (id) => {
+    // ✅ LocalStorage मधून delete करा
+    const updated = scans.filter(s => s.id !== id);
+    setScans(updated);
+    localStorage.setItem('plantScanHistory', JSON.stringify(updated));
     if (selectedScan?.id === id) setSelectedScan(null);
   };
 
@@ -55,9 +53,7 @@ export default function History() {
             <HistoryIcon className="w-8 h-8 text-green-600" />
             Scan History
           </h1>
-          <p className="text-gray-400 mt-2">
-            {user?.role === "admin" ? "All users' scans (Admin View)" : "फक्त तुमचे स्वतःचे scans"}
-          </p>
+          <p className="text-gray-400 mt-2">तुमचे सर्व scans</p>
         </div>
         {scans.length > 0 && (
           <motion.button
@@ -128,7 +124,7 @@ export default function History() {
                       </h3>
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">{scan.plant_name}</p>
-                    <p className="text-xs text-gray-300 mt-0.5">{moment(scan.created_date).fromNow()}</p>
+                    <p className="text-xs text-gray-300 mt-0.5">{moment(scan.timestamp || scan.created_date).fromNow()}</p>
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -225,7 +221,7 @@ export default function History() {
 
                     <div className="pt-2 border-t border-green-50 flex items-center justify-between gap-3 flex-wrap">
                       <p className="text-xs text-gray-300">
-                        Scanned {moment(selectedScan.created_date).format("MMM DD, YYYY [at] h:mm A")}
+                        Scanned {moment(selectedScan.timestamp || selectedScan.created_date).format("MMM DD, YYYY [at] h:mm A")}
                       </p>
                       <PDFDownloadButton scan={selectedScan} />
                     </div>
