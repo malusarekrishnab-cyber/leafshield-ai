@@ -1,10 +1,14 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Camera, ScanLine, Loader2, CheckCircle2, AlertTriangle, Leaf, ArrowLeft, RotateCcw, FileImage, Download, Sparkles, Video, X } from "lucide-react";
+import {
+  Upload, Camera, ScanLine, Loader2, CheckCircle2, AlertTriangle,
+  Leaf, ArrowLeft, RotateCcw, FileImage, Download, Sparkles, Video, X
+} from "lucide-react";
 import ConfidenceRing from "@/components/shared/ConfidenceRing";
 import SeverityBadge from "@/components/shared/SeverityBadge";
 import { useRateLimit } from "@/lib/useRateLimit";
 import { Link } from "react-router-dom";
+import { analyzePlantImage } from "@/lib/gemini";
 
 export default function Detect() {
   const [image, setImage] = useState(null);
@@ -13,7 +17,8 @@ export default function Detect() {
   const [result, setResult] = useState(null);
   const [step, setStep] = useState("upload");
   const [rateLimitMsg, setRateLimitMsg] = useState("");
-  const checkRate = useRateLimit(5, 60_000); // max 5 scans per minute
+  const [retryCount, setRetryCount] = useState(0);
+  const checkRate = useRateLimit(5, 60_000);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [stream, setStream] = useState(null);
   const fileInputRef = useRef(null);
@@ -59,6 +64,7 @@ export default function Detect() {
     setPreview(URL.createObjectURL(file));
     setStep("preview");
     setResult(null);
+    setRetryCount(0);
   };
 
   const handleDrop = (e) => {
@@ -69,9 +75,10 @@ export default function Detect() {
     setPreview(URL.createObjectURL(file));
     setStep("preview");
     setResult(null);
+    setRetryCount(0);
   };
 
-  const analyzeImage = async () => {
+  const analyzeWithRetry = async (attempt = 0) => {
     const { allowed, waitSec } = checkRate();
     if (!allowed) {
       setRateLimitMsg(`खूप जास्त scans! ${waitSec} सेकंद थांबा.`);
@@ -81,63 +88,81 @@ export default function Detect() {
     setRateLimitMsg("");
     setLoading(true);
     setStep("analyzing");
+
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: image });
-
-      const analysis = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are an expert plant pathologist. Analyze this plant leaf image and detect any diseases.
-        
-Provide a detailed analysis including:
-1. Plant name (identify the plant species)
-2. Disease name (if any, or "Healthy" if no disease)
-3. Whether the plant is healthy (true/false)
-4. Confidence percentage (0-100)
-5. Severity level (low/medium/high/critical) - use "low" if healthy
-6. Symptoms observed
-7. Recommended treatment
-8. Prevention tips
-9. Plant category (fruit/vegetable/grain/flower/tree/other)
-
-Be thorough and scientific in your analysis.`,
-        file_urls: [file_url],
-        response_json_schema: {
-          type: "object",
-          properties: {
-            plant_name: { type: "string" },
-            disease_name: { type: "string" },
-            is_healthy: { type: "boolean" },
-            confidence: { type: "number" },
-            severity: { type: "string", enum: ["low", "medium", "high", "critical"] },
-            symptoms: { type: "string" },
-            treatment: { type: "string" },
-            prevention: { type: "string" },
-            category: { type: "string", enum: ["fruit", "vegetable", "grain", "flower", "tree", "other"] }
-          }
-        },
-        model: "claude_sonnet_4_6"
-      });
+      const analysis = await analyzePlantImage(image);
 
       const scanData = {
-        image_url: file_url,
-        plant_name: analysis.plant_name,
-        disease_name: analysis.disease_name,
-        is_healthy: analysis.is_healthy,
-        confidence: analysis.confidence,
-        severity: analysis.severity,
-        symptoms: analysis.symptoms,
-        treatment: analysis.treatment,
-        prevention: analysis.prevention,
-        category: analysis.category,
+        image_url: preview,
+        plant_name: analysis.plant_name || "Unknown",
+        disease_name: analysis.disease_name || "No Disease",
+        is_healthy: analysis.is_healthy ?? false,
+        confidence: analysis.confidence || 0,
+        severity: analysis.severity || "low",
+        symptoms: analysis.symptoms || "No symptoms detected",
+        treatment: analysis.treatment || "No treatment available",
+        prevention: analysis.prevention || "No prevention tips",
+        category: analysis.category || "other",
       };
 
-      await base44.entities.PlantScan.create(scanData);
+      const history = JSON.parse(localStorage.getItem('plantScanHistory') || '[]');
+      history.unshift({
+        ...scanData,
+        timestamp: new Date().toISOString(),
+        id: Date.now()
+      });
+      localStorage.setItem('plantScanHistory', JSON.stringify(history.slice(0, 50)));
+
       setResult(scanData);
       setStep("result");
+      setRetryCount(0);
     } catch (err) {
-      setStep("preview");
-    } finally {
+      console.error("Analysis attempt", attempt + 1, "failed:", err);
+      
+      // Rate limit error - retry after 3 seconds
+      if (err.message.includes("429") || err.message.includes("rate-limited")) {
+        if (attempt < 3) {
+          setRateLimitMsg(`Rate limit hit! Retrying in ${(attempt + 1) * 2} seconds...`);
+          setTimeout(() => {
+            setRateLimitMsg("");
+            analyzeWithRetry(attempt + 1);
+          }, (attempt + 1) * 2000);
+          return;
+        } else {
+          setRateLimitMsg("Too many requests. Please wait 30 seconds and try again.");
+          setStep("preview");
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Other errors - show fallback
+      setRateLimitMsg("Analysis failed: " + err.message);
+      
+      const fallbackData = {
+        image_url: preview,
+        plant_name: "Unknown",
+        disease_name: "Analysis Failed",
+        is_healthy: false,
+        confidence: 50,
+        severity: "medium",
+        symptoms: "Unable to analyze. Please try again.",
+        treatment: "Retry or consult an expert.",
+        prevention: "Take clear photo in good lighting.",
+        category: "other",
+      };
+      setResult(fallbackData);
+      setStep("result");
       setLoading(false);
+    } finally {
+      if (!rateLimitMsg.includes("Retrying")) {
+        setLoading(false);
+      }
     }
+  };
+
+  const analyzeImage = () => {
+    analyzeWithRetry(0);
   };
 
   const reset = () => {
@@ -145,6 +170,8 @@ Be thorough and scientific in your analysis.`,
     setPreview(null);
     setResult(null);
     setStep("upload");
+    setRetryCount(0);
+    setRateLimitMsg("");
   };
 
   return (
@@ -204,7 +231,6 @@ Be thorough and scientific in your analysis.`,
             />
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Camera button */}
             <motion.button
               whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               onClick={openCamera}
@@ -213,7 +239,6 @@ Be thorough and scientific in your analysis.`,
               <Video className="w-5 h-5" /> Camera वापरून Scan करा
             </motion.button>
 
-            {/* Camera modal */}
             <AnimatePresence>
               {cameraOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -255,16 +280,36 @@ Be thorough and scientific in your analysis.`,
               </div>
               <div className="p-6">
                 {rateLimitMsg && (
-                  <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-2 text-center">{rateLimitMsg}</p>
+                  <div className={`text-sm rounded-xl px-4 py-2 text-center mb-3 ${
+                    rateLimitMsg.includes("Retrying") 
+                      ? "text-yellow-600 bg-yellow-50"
+                      : "text-red-500 bg-red-50"
+                  }`}>
+                    {rateLimitMsg}
+                  </div>
                 )}
-              <motion.button
+                <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={analyzeImage}
-                  className="w-full nature-gradient text-white py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-3 shadow-xl shadow-green-500/20"
+                  disabled={loading}
+                  className={`w-full text-white py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-3 shadow-xl shadow-green-500/20 ${
+                    loading 
+                      ? "bg-gray-400 cursor-not-allowed" 
+                      : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  }`}
                 >
-                  <ScanLine className="w-5 h-5" />
-                  Analyze with AI
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ScanLine className="w-5 h-5" />
+                      Analyze with AI
+                    </>
+                  )}
                 </motion.button>
               </div>
             </div>
@@ -280,7 +325,6 @@ Be thorough and scientific in your analysis.`,
             transition={{ duration: 0.5 }}
             className="relative bg-gradient-to-br from-green-50 via-emerald-50 to-lime-50 rounded-3xl p-12 shadow-xl border border-green-100 text-center overflow-hidden"
           >
-            {/* Floating particles */}
             {[...Array(8)].map((_, i) => (
               <motion.div
                 key={i}
@@ -293,7 +337,6 @@ Be thorough and scientific in your analysis.`,
               </motion.div>
             ))}
 
-            {/* Pulse rings */}
             <div className="relative w-32 h-32 mx-auto mb-8">
               {[0, 1, 2].map(i => (
                 <motion.div
@@ -333,7 +376,12 @@ Be thorough and scientific in your analysis.`,
             </motion.h3>
             <p className="text-gray-400 text-sm mb-8">AI is examining leaf patterns &amp; identifying diseases</p>
 
-            {/* Progress steps */}
+            {rateLimitMsg && (
+              <div className="text-yellow-600 bg-yellow-50 rounded-xl px-4 py-2 mb-4">
+                {rateLimitMsg}
+              </div>
+            )}
+
             <div className="space-y-3 max-w-xs mx-auto text-left">
               {["Uploading image...", "Detecting leaf structure...", "Identifying disease patterns...", "Generating diagnosis..."].map((label, i) => (
                 <motion.div
@@ -369,7 +417,6 @@ Be thorough and scientific in your analysis.`,
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Status Banner */}
             <motion.div
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
@@ -401,7 +448,6 @@ Be thorough and scientific in your analysis.`,
             </motion.div>
 
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Image + Confidence */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -423,7 +469,6 @@ Be thorough and scientific in your analysis.`,
                 </div>
               </motion.div>
 
-              {/* Symptoms */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -437,7 +482,6 @@ Be thorough and scientific in your analysis.`,
                 <p className="text-gray-500 text-sm leading-relaxed">{result.symptoms}</p>
               </motion.div>
 
-              {/* Treatment */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -451,7 +495,6 @@ Be thorough and scientific in your analysis.`,
                 <p className="text-gray-500 text-sm leading-relaxed">{result.treatment}</p>
               </motion.div>
 
-              {/* Prevention */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -490,7 +533,7 @@ Be thorough and scientific in your analysis.`,
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full py-4 rounded-2xl font-semibold nature-gradient text-white flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full py-4 rounded-2xl font-semibold bg-gradient-to-r from-green-600 to-emerald-600 text-white flex items-center justify-center gap-2 shadow-lg hover:from-green-700 hover:to-emerald-700"
                 >
                   <Sparkles className="w-5 h-5" />
                   View History
