@@ -19,22 +19,27 @@ export function AuthProvider({ children }) {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        try {
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const userSnap = await getDoc(userDocRef);
-          const profile = userSnap.exists() ? userSnap.data() : { role: "user" };
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...profile });
-        } catch (err) {
-          console.error("Failed to load user profile:", err);
-          // Still log the user in even if Firestore profile fetch fails
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
-        }
+        // Lगेच basic user set कर, loading थांबव (fast)
+        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
+        setIsLoadingAuth(false);
+
+        // Profile (role वगैरे) background मध्ये fetch कर, तयार झाल्यावर update कर
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        getDoc(userDocRef)
+          .then((userSnap) => {
+            if (userSnap.exists()) {
+              setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userSnap.data() });
+            }
+          })
+          .catch((err) => {
+            console.error("Background profile fetch failed:", err);
+          });
       } else {
         setUser(null);
+        setIsLoadingAuth(false);
       }
-      setIsLoadingAuth(false);
     });
     return () => unsubscribe();
   }, []);
