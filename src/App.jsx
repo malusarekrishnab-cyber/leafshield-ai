@@ -19,6 +19,9 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+// ✅ New Profile & Change Password Pages
+import Profile from '@/pages/Profile';
+import ChangePassword from '@/pages/ChangePassword';
 
 const ProtectedRoute = ({ children }) => {
   const { user, isLoadingAuth } = useAuth();
@@ -57,10 +60,17 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* ✅ Profile & Change Password (No Layout) */}
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/change-password" element={<ChangePassword />} />
+
+      {/* Protected Routes with Layout */}
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Home />} />
         <Route path="/detect" element={<Detect />} />
@@ -70,6 +80,7 @@ const AuthenticatedApp = () => {
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/chatbot" element={<ChatBot />} />
       </Route>
+
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

@@ -10,7 +10,6 @@ export default function UserProfile() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Default avatar - user name चा पहिला अक्षर
   const avatar = user?.displayName?.charAt(0) || user?.email?.charAt(0) || "U";
 
   const handleLogout = async () => {
@@ -42,7 +41,6 @@ export default function UserProfile() {
             transition={{ duration: 0.15 }}
             className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50"
           >
-            {/* User Info */}
             <div className="px-4 py-3 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center font-bold text-sm">
@@ -57,7 +55,6 @@ export default function UserProfile() {
               </div>
             </div>
 
-            {/* Menu Items */}
             <button
               onClick={() => { setOpen(false); navigate("/profile"); }}
               className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 flex items-center gap-3 transition"
