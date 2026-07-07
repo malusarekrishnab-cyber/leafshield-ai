@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CloudRain, Sun, Cloud, Wind, Droplets, Thermometer, RefreshCw, MapPin } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { generateStructuredContent } from "@/lib/gemini";
 
 const WeatherIcon = ({ condition }) => {
   const c = (condition || "").toLowerCase();
@@ -14,16 +14,15 @@ export default function WeatherWidget() {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetch = () => {
+  const fetchWeather = () => {
     setLoading(true);
-    base44.integrations.Core.InvokeLLM({
-      prompt: `Generate a realistic current weather report for Jalna, Maharashtra, India for today (${new Date().toDateString()}).
-      
+    const prompt = `Generate a realistic current weather report for Jalna, Maharashtra, India for today (${new Date().toDateString()}).
+
 Consider: Jalna is in Marathwada, dry zone, current season is ${new Date().toLocaleString('default',{month:'long'})} which is ${new Date().getMonth() >= 5 && new Date().getMonth() <= 9 ? 'monsoon/Kharif season' : new Date().getMonth() >= 10 ? 'Rabi sowing season' : 'Rabi/summer season'}.
 
 Return JSON with:
 - temp_c: number (realistic for Jalna this season)
-- feels_like_c: number  
+- feels_like_c: number
 - humidity_pct: number
 - wind_kmh: number
 - condition: string in Marathi (e.g. "उन्हाळी", "पावसाळी", "ढगाळ", "स्वच्छ ऊन")
@@ -32,34 +31,19 @@ Return JSON with:
 - rain_mm_today: number
 - forecast_3day: array of 3 objects: { day: string (Marathi day name), temp_high: number, temp_low: number, rain_chance: number, icon: "sun"|"cloud"|"rain" }
 - farming_alert: string (short Marathi farming tip based on weather, mention local crop)
-- uv_index: number`,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          temp_c: { type: "number" },
-          feels_like_c: { type: "number" },
-          humidity_pct: { type: "number" },
-          wind_kmh: { type: "number" },
-          condition: { type: "string" },
-          condition_en: { type: "string" },
-          rain_chance_pct: { type: "number" },
-          rain_mm_today: { type: "number" },
-          forecast_3day: { type: "array", items: { type: "object" } },
-          farming_alert: { type: "string" },
-          uv_index: { type: "number" },
-        }
-      }
-    }).then(d => { setWeather(d); setLoading(false); })
+- uv_index: number`;
+
+    generateStructuredContent(prompt)
+      .then(d => { setWeather(d); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchWeather(); }, []);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
       className="bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 border border-blue-100 rounded-3xl p-5 relative overflow-hidden">
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <MapPin className="w-4 h-4 text-blue-500" />
@@ -68,7 +52,7 @@ Return JSON with:
             <p className="text-[10px] text-blue-400">Jalna, Maharashtra</p>
           </div>
         </div>
-        <motion.button whileTap={{ scale: 0.85, rotate: 180 }} onClick={fetch}
+        <motion.button whileTap={{ scale: 0.85, rotate: 180 }} onClick={fetchWeather}
           className="p-1.5 rounded-lg bg-white/60 hover:bg-white text-blue-400 transition">
           <RefreshCw className="w-3.5 h-3.5" />
         </motion.button>
@@ -82,7 +66,6 @@ Return JSON with:
         </div>
       ) : weather ? (
         <>
-          {/* Main temp */}
           <div className="flex items-center gap-4 mb-4">
             <WeatherIcon condition={weather.condition_en} />
             <div>
@@ -91,7 +74,6 @@ Return JSON with:
             </div>
           </div>
 
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
               { icon: Droplets, label: "आर्द्रता", value: `${weather.humidity_pct}%`, color: "text-blue-500" },
@@ -106,7 +88,6 @@ Return JSON with:
             ))}
           </div>
 
-          {/* 3-day forecast */}
           {weather.forecast_3day?.length > 0 && (
             <div className="flex gap-2 mb-4">
               {weather.forecast_3day.map((d, i) => (
@@ -122,7 +103,6 @@ Return JSON with:
             </div>
           )}
 
-          {/* Farming alert */}
           {weather.farming_alert && (
             <div className="bg-white/70 rounded-xl p-3 flex gap-2">
               <span className="text-base flex-shrink-0">🌾</span>

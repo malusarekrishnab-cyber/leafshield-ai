@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Camera, ScanLine, Loader2, CheckCircle2, AlertTriangle, Leaf, ArrowLeft, RotateCcw, FileImage, Download, Sparkles, Video, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import ConfidenceRing from "@/components/shared/ConfidenceRing";
 import SeverityBadge from "@/components/shared/SeverityBadge";
 import { useRateLimit } from "@/lib/useRateLimit";

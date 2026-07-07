@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ScanLine, BookOpen, BarChart3, Leaf, ArrowRight, Shield, Zap, Brain, TrendingUp, Sprout, Bug, MapPin, Bot } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { PlantScan } from "@/lib/entities";
 import FloatingLeaves from "@/components/shared/FloatingLeaves";
 import AnimatedCounter from "@/components/shared/AnimatedCounter";
 import DiseaseRiskCard from "@/components/home/DiseaseRiskCard";
@@ -22,7 +22,7 @@ export default function Home() {
   const [stats, setStats] = useState({ total: 0, healthy: 0, diseased: 0 });
 
   useEffect(() => {
-    base44.entities.PlantScan.list().then(scans => {
+    PlantScan.list().then(scans => {
       setStats({
         total: scans.length,
         healthy: scans.filter(s => s.is_healthy).length,
@@ -47,7 +47,6 @@ export default function Home() {
 
   return (
     <div className="relative overflow-hidden">
-      {/* Hero */}
       <section className="relative min-h-[90vh] flex items-center">
         <FloatingLeaves />
         <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-emerald-50/30 to-lime-50/20" />
@@ -100,7 +99,6 @@ export default function Home() {
                 </Link>
               </motion.div>
 
-              {/* Local crops strip */}
               <motion.div {...fadeUp}>
                 <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">Jalna local crops supported</p>
                 <div className="flex flex-wrap gap-2">
@@ -146,7 +144,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Disease Risk + Quick Stats */}
       <section className="py-8 px-4">
         <div className="max-w-7xl mx-auto mb-6">
           <div className="grid lg:grid-cols-3 gap-6">
@@ -177,9 +174,6 @@ export default function Home() {
         </div>
       </section>
 
-
-
-      {/* Features */}
       <section className="py-20 px-4">
         <div className="max-w-7xl mx-auto">
           <motion.div
@@ -222,7 +216,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="py-20 px-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}

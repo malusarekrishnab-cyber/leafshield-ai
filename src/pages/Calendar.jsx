@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Leaf, AlertTriangle, CheckCircle2, Calendar as CalendarIcon, ScanLine } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { PlantScan } from "@/lib/entities";
 import { Link } from "react-router-dom";
 import SeverityBadge from "@/components/shared/SeverityBadge";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-// Maharashtra Kharif/Rabi season labels
 const SEASON = (month) => {
   if (month >= 5 && month <= 9) return { label: "Kharif Season", color: "text-green-600", bg: "bg-green-50" };
   if (month >= 10 && month <= 11) return { label: "Rabi Sowing", color: "text-amber-600", bg: "bg-amber-50" };
@@ -21,16 +20,15 @@ export default function Calendar() {
   const [loading, setLoading] = useState(true);
   const [today] = useState(new Date());
   const [current, setCurrent] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [selected, setSelected] = useState(null); // { dateStr, scans[] }
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    base44.entities.PlantScan.list().then(data => {
+    PlantScan.list().then(data => {
       setScans(data);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
-  // Group scans by date string "YYYY-MM-DD"
   const scansByDate = scans.reduce((acc, scan) => {
     const d = scan.created_date ? new Date(scan.created_date) : null;
     if (!d) return acc;
@@ -59,11 +57,9 @@ export default function Calendar() {
   const handleDayClick = (day) => {
     const dayScans = getDayScans(day);
     if (dayScans.length === 0) return;
-    const key = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     setSelected({ dateStr: `${day} ${MONTHS[month]} ${year}`, scans: dayScans });
   };
 
-  // Month summary stats
   const monthScans = Object.entries(scansByDate)
     .filter(([key]) => key.startsWith(`${year}-${String(month+1).padStart(2,'0')}`))
     .flatMap(([, s]) => s);
@@ -72,7 +68,6 @@ export default function Calendar() {
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="font-heading text-2xl sm:text-4xl font-bold text-gray-900 flex items-center gap-3">
           <CalendarIcon className="w-7 h-7 text-green-600" />
@@ -81,7 +76,6 @@ export default function Calendar() {
         <p className="text-gray-400 mt-1 text-sm">Track your plant scans through Maharashtra's seasons</p>
       </motion.div>
 
-      {/* Season badge + month stats */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="flex flex-wrap gap-3 items-center mb-5">
         <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${season.bg} ${season.color}`}>
@@ -103,12 +97,10 @@ export default function Calendar() {
       </motion.div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Calendar */}
         <div className="lg:col-span-2">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
             className="bg-white rounded-3xl shadow-sm border border-green-100 overflow-hidden">
 
-            {/* Nav */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-gray-100 transition">
                 <ChevronLeft className="w-5 h-5 text-gray-600" />
@@ -121,16 +113,13 @@ export default function Calendar() {
               </button>
             </div>
 
-            {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-gray-50">
               {DAYS.map(d => (
                 <div key={d} className="text-center py-3 text-xs font-semibold text-gray-400">{d}</div>
               ))}
             </div>
 
-            {/* Days grid */}
             <div className="grid grid-cols-7">
-              {/* Empty cells */}
               {Array.from({ length: firstDay }).map((_, i) => (
                 <div key={`empty-${i}`} className="h-16 sm:h-20 border-b border-r border-gray-50/60" />
               ))}
@@ -177,7 +166,6 @@ export default function Calendar() {
               })}
             </div>
 
-            {/* Legend */}
             <div className="flex gap-4 px-6 py-3 border-t border-gray-50 text-xs text-gray-400">
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-100 border border-green-300 inline-block" /> Healthy scans</span>
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300 inline-block" /> Disease detected</span>
@@ -186,9 +174,7 @@ export default function Calendar() {
           </motion.div>
         </div>
 
-        {/* Side panel */}
         <div className="space-y-4">
-          {/* Selected day detail */}
           <AnimatePresence mode="wait">
             {selected ? (
               <motion.div key="detail" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
@@ -238,7 +224,6 @@ export default function Calendar() {
             )}
           </AnimatePresence>
 
-          {/* Seasonal care tips */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
             className={`rounded-3xl border p-5 ${season.bg}`}>
             <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${season.color}`}>🌾 {season.label} Tips</p>
@@ -256,7 +241,7 @@ export default function Calendar() {
               </>)}
               {month >= 0 && month <= 2 && (<>
                 <li>• Wheat — apply second irrigation; watch for Rust</li>
-                <li>• Chana & Rabi pulses — check for Pod Borer</li>
+                <li>• Chana &amp; Rabi pulses — check for Pod Borer</li>
                 <li>• Onion bulb growth — avoid overwatering</li>
               </>)}
               {month >= 3 && month <= 4 && (<>
@@ -267,7 +252,6 @@ export default function Calendar() {
             </ul>
           </motion.div>
 
-          {/* Quick scan CTA */}
           <Link to="/detect">
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               className="nature-gradient text-white rounded-3xl p-5 cursor-pointer flex items-center gap-4 shadow-lg shadow-green-500/20">

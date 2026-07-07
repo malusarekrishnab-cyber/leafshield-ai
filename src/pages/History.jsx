@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { History as HistoryIcon, Calendar, Trash2, CheckCircle2, AlertTriangle, Eye, X, ChevronRight, Download, Maximize2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { PlantScan } from "@/lib/entities";
 import { useAuth } from "@/lib/AuthContext";
 import SeverityBadge from "@/components/shared/SeverityBadge";
 import ConfidenceRing from "@/components/shared/ConfidenceRing";
@@ -23,14 +23,14 @@ export default function History() {
   const loadScans = () => {
     setLoading(true);
     // Admins see all scans; regular users see only their own
-    const query = user?.role === "admin" ? {} : { created_by_id: user.id };
-    base44.entities.PlantScan.filter(query, "-created_date", 100)
+    const query = user?.role === "admin" ? {} : { created_by_id: user.uid };
+    PlantScan.filter(query, "-created_date", 100)
       .then(data => { setScans(data); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
   const deleteScan = async (id) => {
-    await base44.entities.PlantScan.delete(id);
+    await PlantScan.delete(id);
     setScans(scans.filter(s => s.id !== id));
     if (selectedScan?.id === id) setSelectedScan(null);
   };
@@ -84,7 +84,6 @@ export default function History() {
         </motion.div>
       ) : (
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Scan List */}
           <div className="lg:col-span-2 space-y-3">
             <AnimatePresence>
               {scans.map((scan, i) => (
@@ -148,7 +147,6 @@ export default function History() {
             </AnimatePresence>
           </div>
 
-          {/* Detail Panel */}
           <div className="lg:col-span-1">
             <AnimatePresence mode="wait">
               {selectedScan ? (

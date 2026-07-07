@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CloudRain, Thermometer, Wind, AlertTriangle, ShieldCheck, RefreshCw } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { generateStructuredContent } from "@/lib/gemini";
 
 const riskColors = {
   Low: { bg: "from-emerald-50 to-green-50", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" },
@@ -16,8 +16,7 @@ export default function DiseaseRiskCard() {
 
   const fetchRisk = () => {
     setLoading(true);
-    base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert agricultural AI assistant specializing in Maharashtra, India farming conditions — specifically Jalna district in the Marathwada region.
+    const prompt = `You are an expert agricultural AI assistant specializing in Maharashtra, India farming conditions — specifically Jalna district in the Marathwada region.
 
 Generate a realistic daily plant disease risk forecast for today (${new Date().toDateString()}) for Jalna, Maharashtra farmers.
 
@@ -37,34 +36,14 @@ Return a JSON with:
 - tip: string (practical tip relevant to Jalna farmers, mention local crop names)
 - summary: string (2 sentence forecast mentioning Jalna/Marathwada)
 
-Make it realistic, specific to Jalna district, and varied each time.`,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          overall_risk: { type: "string" },
-          risk_score: { type: "number" },
-          temperature_c: { type: "number" },
-          humidity_pct: { type: "number" },
-          wind_kmh: { type: "number" },
-          top_threats: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                disease: { type: "string" },
-                probability_pct: { type: "number" },
-                affected_crops: { type: "string" }
-              }
-            }
-          },
-          tip: { type: "string" },
-          summary: { type: "string" }
-        }
-      }
-    }).then(data => {
-      setRisk(data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+Make it realistic, specific to Jalna district, and varied each time.`;
+
+    generateStructuredContent(prompt)
+      .then(data => {
+        setRisk(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   };
 
   useEffect(() => { fetchRisk(); }, []);
@@ -104,7 +83,6 @@ Make it realistic, specific to Jalna district, and varied each time.`,
         </div>
       ) : risk ? (
         <>
-          {/* Weather Row */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
               { icon: Thermometer, label: `${risk.temperature_c}°C`, sub: "Temp" },
@@ -119,7 +97,6 @@ Make it realistic, specific to Jalna district, and varied each time.`,
             ))}
           </div>
 
-          {/* Risk Bar */}
           <div className="mb-4">
             <div className="flex justify-between text-xs text-gray-400 mb-1">
               <span>Risk Level</span>
@@ -135,7 +112,6 @@ Make it realistic, specific to Jalna district, and varied each time.`,
             </div>
           </div>
 
-          {/* Top Threats */}
           <div className="space-y-2 mb-4">
             <p className="text-xs font-semibold text-gray-500">Top Threats Today</p>
             {risk.top_threats?.map((t, i) => (
@@ -150,7 +126,6 @@ Make it realistic, specific to Jalna district, and varied each time.`,
             ))}
           </div>
 
-          {/* Tip */}
           <div className="bg-white/60 rounded-xl p-3 flex gap-2">
             <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-gray-600 leading-relaxed">{risk.tip}</p>

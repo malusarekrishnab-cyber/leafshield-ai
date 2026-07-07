@@ -2,15 +2,23 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, LogOut } from "lucide-react";
 import { useSessionTimeout } from "@/lib/useSessionTimeout";
-import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function SessionWarning() {
   const [showWarning, setShowWarning] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   useSessionTimeout({
     onWarn: () => setShowWarning(true),
     onLogout: () => setShowWarning(false),
   });
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <AnimatePresence>
@@ -36,7 +44,7 @@ export default function SessionWarning() {
                   Active राहा
                 </button>
                 <button
-                  onClick={() => base44.auth.logout("/login")}
+                  onClick={handleLogout}
                   className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition flex items-center gap-1"
                 >
                   <LogOut className="w-3 h-3" /> Logout

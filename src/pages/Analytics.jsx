@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, TrendingUp, PieChart, Activity, Leaf, Bug, Shield, Calendar } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { PlantScan } from "@/lib/entities";
 import { useAuth } from "@/lib/AuthContext";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, AreaChart, Area } from "recharts";
 import AnimatedCounter from "@/components/shared/AnimatedCounter";
 import ConfidenceRing from "@/components/shared/ConfidenceRing";
 
@@ -16,8 +16,8 @@ export default function Analytics() {
 
   useEffect(() => {
     if (!user) return;
-    const query = user?.role === "admin" ? {} : { created_by_id: user.id };
-    base44.entities.PlantScan.filter(query, "-created_date", 100).then(data => {
+    const query = user?.role === "admin" ? {} : { created_by_id: user.uid };
+    PlantScan.filter(query, "-created_date", 100).then(data => {
       setScans(data);
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -28,7 +28,6 @@ export default function Analytics() {
   const diseasedCount = totalScans - healthyCount;
   const avgConfidence = totalScans > 0 ? Math.round(scans.reduce((sum, s) => sum + (s.confidence || 0), 0) / totalScans) : 0;
 
-  // Disease Distribution
   const diseaseDistribution = scans.reduce((acc, s) => {
     if (!s.is_healthy) {
       acc[s.disease_name] = (acc[s.disease_name] || 0) + 1;
@@ -37,25 +36,16 @@ export default function Analytics() {
   }, {});
   const diseaseChartData = Object.entries(diseaseDistribution).map(([name, count]) => ({ name: name?.substring(0, 15), count })).slice(0, 6);
 
-  // Health Pie
   const healthPieData = [
     { name: "Healthy", value: healthyCount },
     { name: "Diseased", value: diseasedCount },
   ];
 
-  // Severity Distribution
   const severityData = ["low", "medium", "high", "critical"].map(s => ({
     severity: s.charAt(0).toUpperCase() + s.slice(1),
     count: scans.filter(scan => scan.severity === s).length,
   }));
 
-  // Category Distribution
-  const categoryData = ["fruit", "vegetable", "grain", "flower", "tree", "other"].map(c => ({
-    subject: c.charAt(0).toUpperCase() + c.slice(1),
-    count: scans.filter(s => s.category === c).length,
-  })).filter(d => d.count > 0);
-
-  // Weekly trend (last 7 days)
   const weeklyData = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
@@ -112,7 +102,6 @@ export default function Analytics() {
         </motion.div>
       ) : (
         <>
-          {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {statCards.map((stat, i) => (
               <motion.div
@@ -135,7 +124,6 @@ export default function Analytics() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6 mb-6">
-            {/* Weekly Trend */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -165,7 +153,6 @@ export default function Analytics() {
               </div>
             </motion.div>
 
-            {/* Health Pie */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -209,7 +196,6 @@ export default function Analytics() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* Disease Bar Chart */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -243,7 +229,6 @@ export default function Analytics() {
               )}
             </motion.div>
 
-            {/* Severity */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
