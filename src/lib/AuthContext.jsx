@@ -3,7 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+ signInWithRedirect ,
   GoogleAuthProvider,
   signOut,
   sendPasswordResetEmail,
@@ -63,7 +63,7 @@ export function AuthProvider({ children }) {
   };
 
   const loginWithGoogle = async () => {
-    const cred = await signInWithPopup(auth, googleProvider);
+    const cred = await signInWithRedirect(auth, googleProvider);
     try {
       const userDocRef = doc(db, "users", cred.user.uid);
       const userSnap = await getDoc(userDocRef);
