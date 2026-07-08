@@ -6,7 +6,7 @@ import { PlantScan } from "@/lib/entities";
 import FloatingLeaves from "@/components/shared/FloatingLeaves";
 import AnimatedCounter from "@/components/shared/AnimatedCounter";
 import DiseaseRiskCard from "@/components/home/DiseaseRiskCard";
-import WeatherWidget from '../components/home/WeatherWidget'  // Capital W
+import WeatherWidget from "../components/home/weatherWidget"
 const fadeUp = {
   initial: { opacity: 0, y: 48, filter: "blur(6px)" },
   animate: { opacity: 1, y: 0, filter: "blur(0px)" },
