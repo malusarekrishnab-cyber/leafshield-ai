@@ -20,15 +20,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Lagach basic user state set kar (fast UI sathi)
-        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
-        setIsLoadingAuth(false);
-
-        // Profile (role, extra data) fetch ani sync logic
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        try {
+      try {
+        if (firebaseUser) {
+          // Profile (role, extra data) fetch ani sync logic
+          const userDocRef = doc(db, "users", firebaseUser.uid);
           const userSnap = await getDoc(userDocRef);
+
           if (userSnap.exists()) {
             setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userSnap.data() });
           } else {
@@ -39,11 +36,19 @@ export function AuthProvider({ children }) {
             });
             setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
           }
-        } catch (err) {
-          console.error("Background profile fetch/sync failed:", err);
+        } else {
+          setUser(null);
         }
-      } else {
-        setUser(null);
+      } catch (err) {
+        console.error("Background profile fetch/sync failed:", err);
+        // Error aala tari offline purta basic data set theva
+        if (firebaseUser) {
+          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
+        } else {
+          setUser(null);
+        }
+      } finally {
+        // ⚠️ हे अत्यंत महत्वाचं आहे: काहीही झालं तरी लोडिंग थांबलीच पाहिजे!
         setIsLoadingAuth(false);
       }
     });
@@ -64,13 +69,12 @@ export function AuthProvider({ children }) {
       } else if (errorCode === 'auth/user-not-found') {
         alert("Email not registered. Aadhi account create kar.");
       } else if (errorCode === 'auth/invalid-credential') {
-        // Navin Firebase protection mule ha error disto (wrong email kiva password sathi)
         alert("Incorrect email or password. Krupaya details check kar.");
       } else {
         alert("Something went wrong. Thodya velane try kar.");
         console.error("Firebase Auth Error:", error.message);
       }
-      throw error; // Ha error pudhe pass kela jya mule UI madhe loading state thambavta yeil
+      throw error; 
     }
   };
 
@@ -89,8 +93,6 @@ export function AuthProvider({ children }) {
 
   // --- Google Login with Redirect ---
   const loginWithGoogle = async () => {
-    // Redirect direct page dusrikade ghetto, mhanun ithe variable madhe data store hot nahi.
-    // Profile handling aapan varती useEffect madhe automatic keleli ahe.
     await signInWithRedirect(auth, googleProvider);
   };
 
