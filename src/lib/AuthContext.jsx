@@ -19,43 +19,31 @@ export function AuthProvider({ children }) {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          // Profile (role, extra data) fetch ani sync logic
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const userSnap = await getDoc(userDocRef);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
+        setIsLoadingAuth(false);
 
-          if (userSnap.exists()) {
-            setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userSnap.data() });
-          } else {
-            // Jar navin user Google ne aala asel tar tyacha profile database मध्ये banva
-            await setDoc(userDocRef, {
-              role: "user",
-              email: firebaseUser.email,
-            });
-            setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
-          }
-        } else {
-          setUser(null);
-        }
-      } catch (err) {
-        console.error("Background profile fetch/sync failed:", err);
-        // Error aala tari offline purta basic data set theva
-        if (firebaseUser) {
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
-        } else {
-          setUser(null);
-        }
-      } finally {
-        // ⚠️ हे अत्यंत महत्वाचं आहे: काहीही झालं तरी लोडिंग थांबलीच पाहिजे!
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        getDoc(userDocRef)
+          .then(async (userSnap) => {
+            if (userSnap.exists()) {
+              setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userSnap.data() });
+            } else {
+              await setDoc(userDocRef, { role: "user", email: firebaseUser.email });
+            }
+          })
+          .catch((err) => {
+            console.error("Background profile fetch/sync failed:", err);
+          });
+      } else {
+        setUser(null);
         setIsLoadingAuth(false);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // --- Email Password Login with Proper Error Handling ---
   const login = async (email, password) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -63,18 +51,17 @@ export function AuthProvider({ children }) {
       return cred.user;
     } catch (error) {
       const errorCode = error.code;
-
-      if (errorCode === 'auth/wrong-password') {
+      if (errorCode === "auth/wrong-password") {
         alert("Incorrect password. Krupaya parat try kar.");
-      } else if (errorCode === 'auth/user-not-found') {
+      } else if (errorCode === "auth/user-not-found") {
         alert("Email not registered. Aadhi account create kar.");
-      } else if (errorCode === 'auth/invalid-credential') {
+      } else if (errorCode === "auth/invalid-credential") {
         alert("Incorrect email or password. Krupaya details check kar.");
       } else {
         alert("Something went wrong. Thodya velane try kar.");
         console.error("Firebase Auth Error:", error.message);
       }
-      throw error; 
+      throw error;
     }
   };
 
@@ -91,7 +78,6 @@ export function AuthProvider({ children }) {
     return cred.user;
   };
 
-  // --- Google Login with Redirect ---
   const loginWithGoogle = async () => {
     await signInWithRedirect(auth, googleProvider);
   };

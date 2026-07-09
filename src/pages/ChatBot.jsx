@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Leaf, Bot, User, Loader2, ArrowLeft, Mic } from "lucide-react";
+import { Send, Leaf, Bot, User, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { chatWithAssistant } from "@/lib/gemini";
+import { useAuth } from "@/lib/AuthContext";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
 const SUGGESTED = [
   "कापसावर बोंडअळी आली आहे, काय करू?",
   "सोयाबीनची पाने पिवळी होत आहेत",
@@ -11,20 +15,49 @@ const SUGGESTED = [
   "कांदा पिकात थ्रिप्स आहेत",
 ];
 
+const DEFAULT_MESSAGE = {
+  role: "assistant",
+  content: "नमस्कार! मी LeafShield AI आहे — जालना जिल्ह्यातील शेतकऱ्यांसाठी तुमचा वैयक्तिक कृषी सहाय्यक. तुमच्या पिकाबद्दल कोणतीही समस्या खाली विचारा! 🌿",
+};
+
 export default function ChatBot() {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "नमस्कार! मी LeafShield AI आहे — जालना जिल्ह्यातील शेतकऱ्यांसाठी तुमचा वैयक्तिक कृषी सहाय्यक. तुमच्या पिकाबद्दल कोणतीही समस्या खाली विचारा! 🌿",
-    },
-  ]);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState([DEFAULT_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef(null);
+
+  // Login झालेल्या user ची जुनी chat history Firestore मधून load कर
+  useEffect(() => {
+    if (!user) {
+      setHistoryLoaded(true);
+      return;
+    }
+    const chatDocRef = doc(db, "chat_history", user.uid);
+    getDoc(chatDocRef)
+      .then((snap) => {
+        if (snap.exists() && snap.data().messages?.length > 0) {
+          setMessages(snap.data().messages);
+        }
+      })
+      .catch((err) => console.error("Failed to load chat history:", err))
+      .finally(() => setHistoryLoaded(true));
+  }, [user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // प्रत्येक नवीन message आल्यावर Firestore मध्ये save कर
+  const saveHistory = async (updatedMessages) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, "chat_history", user.uid), { messages: updatedMessages });
+    } catch (err) {
+      console.error("Failed to save chat history:", err);
+    }
+  };
 
   const handleSend = async (textToSend) => {
     const targetText = textToSend || input.trim();
@@ -37,42 +70,69 @@ export default function ChatBot() {
 
     try {
       const response = await chatWithAssistant(messages, targetText);
-      setMessages([...updatedMessages, { role: "assistant", content: response }]);
+      const finalMessages = [...updatedMessages, { role: "assistant", content: response }];
+      setMessages(finalMessages);
+      saveHistory(finalMessages);
     } catch (error) {
       console.error(error);
-      setMessages([...updatedMessages, { role: "assistant", content: "कृपिया पुन्हा प्रयत्न करा, संपर्क होऊ शकला नाही." }]);
+      const finalMessages = [...updatedMessages, { role: "assistant", content: "कृपिया पुन्हा प्रयत्न करा, संपर्क होऊ शकला नाही." }];
+      setMessages(finalMessages);
     } finally {
       setLoading(false);
     }
   };
 
+  const clearHistory = async () => {
+    setMessages([DEFAULT_MESSAGE]);
+    if (user) {
+      try {
+        await setDoc(doc(db, "chat_history", user.uid), { messages: [DEFAULT_MESSAGE] });
+      } catch (err) {
+        console.error("Failed to clear chat history:", err);
+      }
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 flex flex-col h-[90vh]">
-      <div className="mb-4 flex items-center gap-3">
-        <Link to="/" className="p-2 bg-gray-100 rounded-xl"><ArrowLeft className="w-4 h-4" /></Link>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">कृषी AI सहाय्यक</h1>
-          <p className="text-xs text-gray-400">मराठीत झटपट सल्ला</p>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="p-2 bg-gray-100 rounded-xl"><ArrowLeft className="w-4 h-4" /></Link>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">कृषी AI सहाय्यक</h1>
+            <p className="text-xs text-gray-400">मराठीत झटपट सल्ला</p>
+          </div>
         </div>
+        {messages.length > 1 && (
+          <button onClick={clearHistory} className="text-xs text-gray-400 hover:text-red-500 px-3 py-1.5 rounded-lg border">
+            Clear
+          </button>
+        )}
       </div>
 
-      {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 bg-gray-50 p-4 rounded-2xl border">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white border text-green-600"}`}>
-              {msg.role === "user" ? <User className="w-4 h-4" /> : <Leaf className="w-4 h-4" />}
-            </div>
-            <div className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800"}`}>
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
-            </div>
+        {!historyLoaded ? (
+          <div className="flex items-center justify-center h-full text-gray-300 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin mr-2" /> History load होत आहे...
           </div>
-        ))}
-        {loading && <div className="text-xs text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> उत्तर शोधत आहे...</div>}
+        ) : (
+          <>
+            {messages.map((msg, index) => (
+              <div key={index} className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white border text-green-600"}`}>
+                  {msg.role === "user" ? <User className="w-4 h-4" /> : <Leaf className="w-4 h-4" />}
+                </div>
+                <div className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800"}`}>
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              </div>
+            ))}
+            {loading && <div className="text-xs text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> उत्तर शोधत आहे...</div>}
+          </>
+        )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggestions */}
       {messages.length === 1 && (
         <div className="grid grid-cols-2 gap-2 mb-3">
           {SUGGESTED.map((q, i) => (
@@ -81,7 +141,6 @@ export default function ChatBot() {
         </div>
       )}
 
-      {/* Input Form */}
       <div className="flex gap-2 bg-white border p-2 rounded-xl shadow-sm">
         <input
           type="text"
