@@ -14,6 +14,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+backend/model/best.pt
+backend/uploads/
+backend/predictions/
+backend/__pycache__/
+backend/venv/
+*.pyc
+
 *.local
 
 # Editor directories and files

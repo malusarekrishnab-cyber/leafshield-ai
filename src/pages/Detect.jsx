@@ -8,7 +8,6 @@ import ConfidenceRing from "@/components/shared/ConfidenceRing";
 import SeverityBadge from "@/components/shared/SeverityBadge";
 import { useRateLimit } from "@/lib/useRateLimit";
 import { Link } from "react-router-dom";
-import { analyzePlantImage } from "@/lib/gemini";
 
 export default function Detect() {
   const [image, setImage] = useState(null);
@@ -90,20 +89,27 @@ export default function Detect() {
     setStep("analyzing");
 
     try {
-      const analysis = await analyzePlantImage(image);
+     const formData = new FormData();
+formData.append("file", image);
 
-      const scanData = {
-        image_url: preview,
-        plant_name: analysis.plant_name || "Unknown",
-        disease_name: analysis.disease_name || "No Disease",
-        is_healthy: analysis.is_healthy ?? false,
-        confidence: analysis.confidence || 0,
-        severity: analysis.severity || "low",
-        symptoms: analysis.symptoms || "No symptoms detected",
-        treatment: analysis.treatment || "No treatment available",
-        prevention: analysis.prevention || "No prevention tips",
-        category: analysis.category || "other",
-      };
+const response = await fetch("http://127.0.0.1:8000/predict", {
+  method: "POST",
+  body: formData,
+});
+
+const analysis = await response.json();
+const scanData = {
+  image_url: preview,
+  plant_name: analysis.plant,
+  disease_name: analysis.disease,
+  confidence: analysis.confidence,
+  is_healthy: analysis.healthy,
+  severity: analysis.severity,
+  symptoms: analysis.symptoms,
+  treatment: analysis.treatment,
+  prevention: analysis.prevention,
+  category: "Plant Disease",
+};
 
       const history = JSON.parse(localStorage.getItem('plantScanHistory') || '[]');
       history.unshift({
