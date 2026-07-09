@@ -3,13 +3,13 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithRedirect,
+  signInWithPopup, 
   GoogleAuthProvider,
   signOut,
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase"; 
 
 const AuthContext = createContext(null);
 const googleProvider = new GoogleAuthProvider();
@@ -19,23 +19,32 @@ export function AuthProvider({ children }) {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, role: "user" });
-        setIsLoadingAuth(false);
+        // १. फास्ट लोडिंग: युझरचा बेसिक डेटा, नाव आणि फोटो लगेच सेट कर
+        setUser({ 
+          uid: firebaseUser.uid, 
+          email: firebaseUser.email, 
+          name: firebaseUser.displayName || "शेतकरी",
+          photoURL: firebaseUser.photoURL,
+          role: "user" 
+        });
+        setIsLoadingAuth(false); 
 
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        getDoc(userDocRef)
-          .then(async (userSnap) => {
-            if (userSnap.exists()) {
-              setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userSnap.data() });
-            } else {
-              await setDoc(userDocRef, { role: "user", email: firebaseUser.email });
-            }
-          })
-          .catch((err) => {
-            console.error("Background profile fetch/sync failed:", err);
-          });
+        // २. बॅकग्राउंड डेटा फेच: आता शांतपणे फायरस्टोर मधून डेटा घे.
+        try {
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userSnap = await getDoc(userDocRef);
+
+          if (userSnap.exists()) {
+            setUser((prev) => ({ ...prev, ...userSnap.data() }));
+          } else {
+            // नवीन Google युझर असेल तर त्याचा डेटा सेव्ह कर
+            await setDoc(userDocRef, { role: "user", email: firebaseUser.email });
+          }
+        } catch (err) {
+          console.error("Background profile fetch failed:", err);
+        }
       } else {
         setUser(null);
         setIsLoadingAuth(false);
@@ -47,18 +56,17 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login Successful");
       return cred.user;
     } catch (error) {
       const errorCode = error.code;
       if (errorCode === "auth/wrong-password") {
-        alert("Incorrect password. Krupaya parat try kar.");
+        alert("Incorrect password. कृपया परत ट्राय कर.");
       } else if (errorCode === "auth/user-not-found") {
-        alert("Email not registered. Aadhi account create kar.");
+        alert("Email not registered. आधी अकाउंट क्रिएट कर.");
       } else if (errorCode === "auth/invalid-credential") {
-        alert("Incorrect email or password. Krupaya details check kar.");
+        alert("Incorrect email or password. कृपया डिटेल्स चेक कर.");
       } else {
-        alert("Something went wrong. Thodya velane try kar.");
+        alert("Something went wrong. थोड्या वेळाने ट्राय कर.");
         console.error("Firebase Auth Error:", error.message);
       }
       throw error;
@@ -79,10 +87,16 @@ export function AuthProvider({ children }) {
   };
 
   const loginWithGoogle = async () => {
-    await signInWithRedirect(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error("Google Login Blocked or Failed:", error);
+      alert("Google Login कॅन्सल झाला किंवा फेल झाला.");
+    }
   };
 
   const logout = async () => {
+    sessionStorage.removeItem("leafshield_chat_history");
     await signOut(auth);
   };
 

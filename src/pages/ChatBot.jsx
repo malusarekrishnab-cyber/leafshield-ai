@@ -4,9 +4,6 @@ import { Send, Leaf, Bot, User, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { chatWithAssistant } from "@/lib/gemini";
-import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const SUGGESTED = [
   "कापसावर बोंडअळी आली आहे, काय करू?",
@@ -21,43 +18,19 @@ const DEFAULT_MESSAGE = {
 };
 
 export default function ChatBot() {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState([DEFAULT_MESSAGE]);
+  // App initialize hotana direct sessionStorage madhun data ghet ahe, network call chi garaj nahi
+  const [messages, setMessages] = useState(() => {
+    const savedHistory = sessionStorage.getItem("leafshield_chat_history");
+    return savedHistory ? JSON.parse(savedHistory) : [DEFAULT_MESSAGE];
+  });
+  
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef(null);
-
-  // Login झालेल्या user ची जुनी chat history Firestore मधून load कर
-  useEffect(() => {
-    if (!user) {
-      setHistoryLoaded(true);
-      return;
-    }
-    const chatDocRef = doc(db, "chat_history", user.uid);
-    getDoc(chatDocRef)
-      .then((snap) => {
-        if (snap.exists() && snap.data().messages?.length > 0) {
-          setMessages(snap.data().messages);
-        }
-      })
-      .catch((err) => console.error("Failed to load chat history:", err))
-      .finally(() => setHistoryLoaded(true));
-  }, [user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  // प्रत्येक नवीन message आल्यावर Firestore मध्ये save कर
-  const saveHistory = async (updatedMessages) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, "chat_history", user.uid), { messages: updatedMessages });
-    } catch (err) {
-      console.error("Failed to save chat history:", err);
-    }
-  };
 
   const handleSend = async (textToSend) => {
     const targetText = textToSend || input.trim();
@@ -66,31 +39,29 @@ export default function ChatBot() {
     setInput("");
     const updatedMessages = [...messages, { role: "user", content: targetText }];
     setMessages(updatedMessages);
+    
+    // Local storage madhe save kar, instant reload sathi
+    sessionStorage.setItem("leafshield_chat_history", JSON.stringify(updatedMessages));
     setLoading(true);
 
     try {
       const response = await chatWithAssistant(messages, targetText);
       const finalMessages = [...updatedMessages, { role: "assistant", content: response }];
       setMessages(finalMessages);
-      saveHistory(finalMessages);
+      sessionStorage.setItem("leafshield_chat_history", JSON.stringify(finalMessages));
     } catch (error) {
       console.error(error);
       const finalMessages = [...updatedMessages, { role: "assistant", content: "कृपिया पुन्हा प्रयत्न करा, संपर्क होऊ शकला नाही." }];
       setMessages(finalMessages);
+      sessionStorage.setItem("leafshield_chat_history", JSON.stringify(finalMessages));
     } finally {
       setLoading(false);
     }
   };
 
-  const clearHistory = async () => {
+  const clearHistory = () => {
     setMessages([DEFAULT_MESSAGE]);
-    if (user) {
-      try {
-        await setDoc(doc(db, "chat_history", user.uid), { messages: [DEFAULT_MESSAGE] });
-      } catch (err) {
-        console.error("Failed to clear chat history:", err);
-      }
-    }
+    sessionStorage.removeItem("leafshield_chat_history");
   };
 
   return (
@@ -111,25 +82,18 @@ export default function ChatBot() {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 bg-gray-50 p-4 rounded-2xl border">
-        {!historyLoaded ? (
-          <div className="flex items-center justify-center h-full text-gray-300 text-sm">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" /> History load होत आहे...
+        {/* Attha loading spinner chi garaj nahi, data instant direct load hoil */}
+        {messages.map((msg, index) => (
+          <div key={index} className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white border text-green-600"}`}>
+              {msg.role === "user" ? <User className="w-4 h-4" /> : <Leaf className="w-4 h-4" />}
+            </div>
+            <div className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800"}`}>
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
           </div>
-        ) : (
-          <>
-            {messages.map((msg, index) => (
-              <div key={index} className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white border text-green-600"}`}>
-                  {msg.role === "user" ? <User className="w-4 h-4" /> : <Leaf className="w-4 h-4" />}
-                </div>
-                <div className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800"}`}>
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              </div>
-            ))}
-            {loading && <div className="text-xs text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> उत्तर शोधत आहे...</div>}
-          </>
-        )}
+        ))}
+        {loading && <div className="text-xs text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> उत्तर शोधत आहे...</div>}
         <div ref={bottomRef} />
       </div>
 
