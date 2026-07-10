@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Leaf, Bot, User, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { chatWithAssistant } from "@/lib/gemini";
+//import { chatWithAssistant } from "@/lib/gemini";
+import { chatWithGroq } from "@/lib/groq";
 
 const SUGGESTED = [
   "कापसावर बोंडअळी आली आहे, काय करू?",
@@ -45,7 +46,7 @@ export default function ChatBot() {
     setLoading(true);
 
     try {
-      const response = await chatWithAssistant(messages, targetText);
+      const response = await chatWithGroq(messages, targetText);
       const finalMessages = [...updatedMessages, { role: "assistant", content: response }];
       setMessages(finalMessages);
       sessionStorage.setItem("leafshield_chat_history", JSON.stringify(finalMessages));
