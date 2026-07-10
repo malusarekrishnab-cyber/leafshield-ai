@@ -9,12 +9,14 @@ app = FastAPI(title="LeafShield AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://leafshield-ai.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # Load trained model only once
 model = YOLO("model/best.pt")
 

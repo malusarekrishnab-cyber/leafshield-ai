@@ -7,7 +7,7 @@ An AI-powered plant disease detection app built for farmers in Jalna, Marathwada
 - React + Vite
 - Tailwind CSS
 - Firebase (Authentication + Firestore + Storage)
-- Google Gemini API (AI image analysis & chatbot)
+- groq  API (AI image analysis & chatbot)
 - Framer Motion (animations)
 - Recharts (analytics charts)
 
