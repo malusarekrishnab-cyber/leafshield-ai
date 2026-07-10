@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CloudRain, Sun, Cloud, Wind, Droplets, Thermometer, RefreshCw, MapPin } from "lucide-react";
-import { generateStructuredContent } from "@/lib/gemini";
+import { generateStructuredContent } from "@/lib/groq";
 
 const WeatherIcon = ({ condition }) => {
   const c = (condition || "").toLowerCase();

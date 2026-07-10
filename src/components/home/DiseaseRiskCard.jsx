@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CloudRain, Thermometer, Wind, AlertTriangle, ShieldCheck, RefreshCw } from "lucide-react";
-import { generateStructuredContent } from "@/lib/gemini";
+import { generateStructuredContent } from "@/lib/groq";
 
 const riskColors = {
   Low: { bg: "from-emerald-50 to-green-50", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" },

@@ -69,3 +69,41 @@ Rules:
     return "क्षमस्व, AI शी संपर्क होऊ शकला नाही. कृपया पुन्हा प्रयत्न करा.";
   }
 };
+export const generateStructuredContent = async (prompt) => {
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.3,
+        max_tokens: 1024,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Respond ONLY with valid JSON. Do not use markdown or extra text.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    const data = await response.json();
+
+    return JSON.parse(data.choices[0].message.content);
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
