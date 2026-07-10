@@ -25,7 +25,7 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Lowered temporarily for debugging. Raise back to 60 once you confirm real confidence values.
-CONFIDENCE_THRESHOLD = 30
+CONFIDENCE_THRESHOLD = 5
 
 # Disease Information
 DISEASE_INFO = {
