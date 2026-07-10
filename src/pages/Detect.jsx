@@ -92,25 +92,28 @@ export default function Detect() {
      const formData = new FormData();
 formData.append("file", image);
 
-const response = await fetch("http://127.0.0.1:8000/predict", {
+const response = await fetch("https://leafshield-ai.onrender.com/predict", {
   method: "POST",
   body: formData,
 });
 
+if (!response.ok) {
+  throw new Error("Backend Error");
+}
+
 const analysis = await response.json();
 const scanData = {
   image_url: preview,
-  plant_name: analysis.plant,
-  disease_name: analysis.disease,
-  confidence: analysis.confidence,
-  is_healthy: analysis.healthy,
-  severity: analysis.severity,
-  symptoms: analysis.symptoms,
-  treatment: analysis.treatment,
-  prevention: analysis.prevention,
+  plant_name: analysis.plant || "Unknown",
+  disease_name: analysis.disease || "Unknown",
+  confidence: analysis.confidence || 0,
+  is_healthy: analysis.healthy || false,
+  severity: analysis.severity || "unknown",
+  symptoms: analysis.symptoms || "",
+  treatment: analysis.treatment || "",
+  prevention: analysis.prevention || "",
   category: "Plant Disease",
 };
-
       const history = JSON.parse(localStorage.getItem('plantScanHistory') || '[]');
       history.unshift({
         ...scanData,

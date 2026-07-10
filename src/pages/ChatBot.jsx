@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Leaf, Bot, User, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-//import { chatWithAssistant } from "@/lib/gemini";
 import { chatWithGroq } from "@/lib/groq";
 
 const SUGGESTED = [
