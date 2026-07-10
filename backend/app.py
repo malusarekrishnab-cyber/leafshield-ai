@@ -58,7 +58,11 @@ async def predict(file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    results = model.predict(file_path, verbose=False)
+    results = model.predict(
+    source=file_path,
+    imgsz=224,
+    verbose=False
+)
 
     probs = results[0].probs
 
