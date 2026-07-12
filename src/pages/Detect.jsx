@@ -89,19 +89,20 @@ export default function Detect() {
     setStep("analyzing");
 
     try {
-     const formData = new FormData();
+ const formData = new FormData();
 formData.append("file", image);
 
-const response = await fetch("https://leafshield-ai.onrender.com/predict", {
+const response = await fetch("http://127.0.0.1:8000/predict", {
   method: "POST",
   body: formData,
 });
 
 if (!response.ok) {
-  throw new Error("Backend Error");
+  throw new Error(`Backend Error ${response.status}`);
 }
 
 const analysis = await response.json();
+
 const scanData = {
   image_url: preview,
   plant_name: analysis.plant || "Unknown",
