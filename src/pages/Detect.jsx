@@ -9,6 +9,13 @@ import SeverityBadge from "@/components/shared/SeverityBadge";
 import { useRateLimit } from "@/lib/useRateLimit";
 import { Link } from "react-router-dom";
 
+// FIXED: was hardcoded to "http://127.0.0.1:8000/predict", which only ever
+// works on the developer's own machine. Any visitor on the deployed Vercel
+// site had their browser trying to reach ITS OWN localhost:8000, which
+// doesn't exist — that's why detection worked locally but never on Vercel.
+// Now reads from an env variable, same pattern as VITE_GROQ_API_KEY.
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function Detect() {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -89,32 +96,32 @@ export default function Detect() {
     setStep("analyzing");
 
     try {
- const formData = new FormData();
-formData.append("file", image);
+      const formData = new FormData();
+      formData.append("file", image);
 
-const response = await fetch("http://127.0.0.1:8000/predict", {
-  method: "POST",
-  body: formData,
-});
+      const response = await fetch(`${API_URL}/predict`, {
+        method: "POST",
+        body: formData,
+      });
 
-if (!response.ok) {
-  throw new Error(`Backend Error ${response.status}`);
-}
+      if (!response.ok) {
+        throw new Error(`Backend Error ${response.status}`);
+      }
 
-const analysis = await response.json();
+      const analysis = await response.json();
 
-const scanData = {
-  image_url: preview,
-  plant_name: analysis.plant || "Unknown",
-  disease_name: analysis.disease || "Unknown",
-  confidence: analysis.confidence || 0,
-  is_healthy: analysis.healthy || false,
-  severity: analysis.severity || "unknown",
-  symptoms: analysis.symptoms || "",
-  treatment: analysis.treatment || "",
-  prevention: analysis.prevention || "",
-  category: "Plant Disease",
-};
+      const scanData = {
+        image_url: preview,
+        plant_name: analysis.plant || "Unknown",
+        disease_name: analysis.disease || "Unknown",
+        confidence: analysis.confidence || 0,
+        is_healthy: analysis.healthy || false,
+        severity: analysis.severity || "unknown",
+        symptoms: analysis.symptoms || "",
+        treatment: analysis.treatment || "",
+        prevention: analysis.prevention || "",
+        category: "Plant Disease",
+      };
       const history = JSON.parse(localStorage.getItem('plantScanHistory') || '[]');
       history.unshift({
         ...scanData,
@@ -128,7 +135,7 @@ const scanData = {
       setRetryCount(0);
     } catch (err) {
       console.error("Analysis attempt", attempt + 1, "failed:", err);
-      
+
       // Rate limit error - retry after 3 seconds
       if (err.message.includes("429") || err.message.includes("rate-limited")) {
         if (attempt < 3) {
@@ -145,10 +152,10 @@ const scanData = {
           return;
         }
       }
-      
+
       // Other errors - show fallback
       setRateLimitMsg("Analysis failed: " + err.message);
-      
+
       const fallbackData = {
         image_url: preview,
         plant_name: "Unknown",
@@ -291,7 +298,7 @@ const scanData = {
               <div className="p-6">
                 {rateLimitMsg && (
                   <div className={`text-sm rounded-xl px-4 py-2 text-center mb-3 ${
-                    rateLimitMsg.includes("Retrying") 
+                    rateLimitMsg.includes("Retrying")
                       ? "text-yellow-600 bg-yellow-50"
                       : "text-red-500 bg-red-50"
                   }`}>
@@ -304,8 +311,8 @@ const scanData = {
                   onClick={analyzeImage}
                   disabled={loading}
                   className={`w-full text-white py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-3 shadow-xl shadow-green-500/20 ${
-                    loading 
-                      ? "bg-gray-400 cursor-not-allowed" 
+                    loading
+                      ? "bg-gray-400 cursor-not-allowed"
                       : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                   }`}
                 >

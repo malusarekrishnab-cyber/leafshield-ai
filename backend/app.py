@@ -26,8 +26,13 @@ print("MODEL CLASSES:", model.names)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Lowered temporarily for debugging. Raise back to 60 once you confirm real confidence values.
-CONFIDENCE_THRESHOLD = 5
+# FIXED: this was left at 5 (a debug value) — it let almost any image through,
+# including non-plant images. Raised back to a real threshold.
+# NOTE: even at 65, a confidently-wrong prediction (e.g. 86%+ on a non-plant
+# image) will still pass — the model was never trained to recognize
+# "not a plant" as its own category. See the "not_a_plant" retraining note
+# discussed separately for the permanent fix.
+CONFIDENCE_THRESHOLD = 65
 
 # Disease Information
 DISEASE_INFO = {
